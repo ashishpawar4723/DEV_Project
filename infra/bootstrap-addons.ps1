@@ -77,6 +77,22 @@ try {
         "sts", "get-caller-identity", "--output", "json"
     )
 
+    if ($Destroy) {
+        $clusterCheck = & $aws eks describe-cluster `
+            --name $env:EKS_CLUSTER_NAME `
+            --region $env:AWS_REGION `
+            --query "cluster.name" `
+            --output text 2>&1
+        if ($LASTEXITCODE -ne 0) {
+            $clusterCheckText = $clusterCheck -join [Environment]::NewLine
+            if ($clusterCheckText -match "ResourceNotFoundException") {
+                Write-Warning "EKS cluster '$($env:EKS_CLUSTER_NAME)' no longer exists; skipping Kubernetes cleanup."
+                return
+            }
+            throw "Could not check the EKS cluster before cleanup: $clusterCheckText"
+        }
+    }
+
     $clusterVersion = & $aws eks describe-cluster `
         --name $env:EKS_CLUSTER_NAME `
         --region $env:AWS_REGION `
