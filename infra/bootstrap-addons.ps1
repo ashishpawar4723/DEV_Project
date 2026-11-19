@@ -78,12 +78,21 @@ try {
     )
 
     if ($Destroy) {
-        $clusterCheck = & $aws eks describe-cluster `
-            --name $env:EKS_CLUSTER_NAME `
-            --region $env:AWS_REGION `
-            --query "cluster.name" `
-            --output text 2>&1
-        if ($LASTEXITCODE -ne 0) {
+        $previousErrorActionPreference = $ErrorActionPreference
+        try {
+            $ErrorActionPreference = "Continue"
+            $clusterCheck = & $aws eks describe-cluster `
+                --name $env:EKS_CLUSTER_NAME `
+                --region $env:AWS_REGION `
+                --query "cluster.name" `
+                --output text 2>&1
+            $clusterCheckExitCode = $LASTEXITCODE
+        }
+        finally {
+            $ErrorActionPreference = $previousErrorActionPreference
+        }
+
+        if ($clusterCheckExitCode -ne 0) {
             $clusterCheckText = $clusterCheck -join [Environment]::NewLine
             if ($clusterCheckText -match "ResourceNotFoundException") {
                 Write-Warning "EKS cluster '$($env:EKS_CLUSTER_NAME)' no longer exists; skipping Kubernetes cleanup."
